@@ -26,6 +26,12 @@ export function createAuth() {
       maxPasswordLength: 128,
       autoSignIn: true,
     },
+    socialProviders: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID || "",
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      },
+    },
     user: {
       modelName: "users",
       additionalFields: {
