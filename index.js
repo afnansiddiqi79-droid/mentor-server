@@ -122,15 +122,35 @@ const server = app.listen(PORT, () => {
   console.log(`MentorLagbe API listening on ${BETTER_AUTH_URL} (port ${PORT})`);
 });
 
+let shuttingDown = false;
+
 async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log(`\n${signal} received. Shutting down...`);
+
+  // Do not let a stuck connection keep the process alive forever.
+  const forceExit = setTimeout(() => {
+    console.error("Graceful shutdown timed out. Forcing exit.");
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref();
+
   server.close(async () => {
     await closeDB();
+    clearTimeout(forceExit);
     process.exit(0);
   });
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (error) => {
+  console.error("[uncaughtException]", error);
+  void shutdown("uncaughtException");
+});
 
 export default app;
