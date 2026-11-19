@@ -7,6 +7,7 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "seed": "node src/seed.js",
+    "test": "node --test",
     "health": "node -e \"fetch('http://localhost:5000/api/health').then(r=>r.json()).then(console.log)\""
   },
   "keywords": [],
