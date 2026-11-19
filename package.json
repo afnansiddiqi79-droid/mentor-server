@@ -1,0 +1,31 @@
+{
+  "name": "mentor-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "seed": "node src/seed.js",
+    "health": "node -e \"fetch('http://localhost:5000/api/health').then(r=>r.json()).then(console.log)\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@better-auth/mongo-adapter": "^1.7.26",
+    "better-auth": "^1.7.26",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "jose": "^6.2.18",
+    "mongodb": "^7.9.0",
+    "multer": "^2.5.0",
+    "stripe": "^23.2.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
