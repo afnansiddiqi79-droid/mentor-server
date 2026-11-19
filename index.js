@@ -8,6 +8,7 @@ dotenv.config({ quiet: true });
 const { connectDB, getDB, closeDB } = await import("./src/config/db.js");
 const { createAuth } = await import("./src/config/auth.js");
 const { errorHandler, notFoundHandler } = await import("./src/middleware/error.js");
+const { securityHeaders } = await import("./src/middleware/security.js");
 const { stripeWebhookHandler } = await import("./src/routes/payments.routes.js");
 
 const { default: tuitionsRouter } = await import("./src/routes/tuitions.routes.js");
@@ -21,6 +22,8 @@ const { default: statsRouter } = await import("./src/routes/stats.routes.js");
 
 const app = express();
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(securityHeaders);
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || "http://localhost:5000";
