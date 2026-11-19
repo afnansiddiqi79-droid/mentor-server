@@ -23,9 +23,11 @@ export function errorHandler(err, _req, res, _next) {
   const body = {
     success: false,
     message:
-      status >= 500
-        ? "Something went wrong on the server. Please try again."
-        : err.message || "Request failed",
+      err instanceof ApiError
+        ? err.message
+        : status >= 500
+          ? "Something went wrong on the server. Please try again."
+          : err.message || "Request failed",
   };
 
   if (err.details) body.errors = err.details;
