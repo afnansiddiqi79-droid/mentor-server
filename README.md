@@ -99,6 +99,7 @@ Better Auth fields plus `role` (`student|tutor|admin`), `plan` (`free|pro`), `ph
 4. The user document is re-read from MongoDB on every request. Roles and plans from the token or request body are **never trusted**.
 5. `verifyStudent`, `verifyTutor` and `verifyAdmin` return `403` for the wrong role.
 6. Admin sign-up is blocked; the admin account is created by the seed script only.
+7. Google OAuth calls back to `<BETTER_AUTH_URL>/api/auth/callback/google`, then redirects to the absolute frontend `callbackURL` (normally `<CLIENT_URL>/dashboard`). Relative callback URLs are resolved against the API origin, so the frontend must always send absolute frontend URLs. `/dashboard` then applies role-based routing.
 
 ## API reference
 
@@ -229,6 +230,7 @@ Change these before deploying anywhere public.
 4. Add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `IMGBB_API_KEY`.
 5. Register the Stripe webhook endpoint `https://<api>/api/payments/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`.
 6. Run `npm run seed` once (or create the admin manually) and verify `GET /api/health`.
+7. Add the Google OAuth redirect URI `<BETTER_AUTH_URL>/api/auth/callback/google` in Google Cloud Console.
 
 ## Known limitations
 

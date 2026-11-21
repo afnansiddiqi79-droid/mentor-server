@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
+import { resolveOrigins } from "./src/config/origins.js";
 
 dotenv.config({ quiet: true });
 
@@ -25,8 +26,7 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(securityHeaders);
 
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
-const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || "http://localhost:5000";
+const { clientUrl: CLIENT_URL, authBaseUrl: BETTER_AUTH_URL } = resolveOrigins();
 
 const allowedOrigins = new Set(
   [CLIENT_URL, BETTER_AUTH_URL, "http://localhost:3000", "http://127.0.0.1:3000"].filter(

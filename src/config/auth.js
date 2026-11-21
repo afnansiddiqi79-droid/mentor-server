@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { jwt } from "better-auth/plugins";
 import { getClient, getDB } from "./db.js";
+import { resolveOrigins } from "./origins.js";
 
 /**
  * Better Auth instance. Must be created after the MongoDB connection is ready.
@@ -12,14 +13,20 @@ export function createAuth() {
   const isProduction = process.env.NODE_ENV === "production";
   const db = getDB();
   const client = getClient();
+  const { authBaseUrl, signInUrl, googleCallbackUrl, trustedOrigins } =
+    resolveOrigins();
 
   return betterAuth({
     appName: "MentorLagbe",
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:5000",
+    baseURL: authBaseUrl,
     basePath: "/api/auth",
     secret: process.env.BETTER_AUTH_SECRET,
     database: mongodbAdapter(db, { client }),
-    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+    trustedOrigins,
+    // OAuth failures must return to the frontend, never the API's /error page.
+    onAPIError: {
+      errorURL: signInUrl,
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
@@ -30,6 +37,9 @@ export function createAuth() {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID || "",
         clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        // Google must return to the API's Better Auth callback. The callback
+        // handler then redirects to CLIENT_URL (the frontend) using callbackURL.
+        redirectURI: googleCallbackUrl,
       },
     },
     user: {
