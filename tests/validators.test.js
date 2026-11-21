@@ -43,6 +43,56 @@ test("tuitionCreateSchema rejects short titles and invalid modes", () => {
   assert.equal(badMode.success, false);
 });
 
+test("tuition banner images must use an allowed host", () => {
+  assert.equal(
+    tuitionCreateSchema.safeParse({
+      ...validTuition,
+      bannerImage: "https://i.ibb.co/abc123/banner.jpg",
+    }).success,
+    true
+  );
+  assert.equal(
+    tuitionCreateSchema.safeParse({
+      ...validTuition,
+      bannerImage: "https://images.unsplash.com/photo-123",
+    }).success,
+    true
+  );
+  assert.equal(
+    tuitionCreateSchema.safeParse({
+      ...validTuition,
+      bannerImage: "https://evil.example/tracker.gif",
+    }).success,
+    false
+  );
+  assert.equal(
+    tuitionCreateSchema.safeParse({
+      ...validTuition,
+      bannerImage: "not-a-url",
+    }).success,
+    false
+  );
+});
+
+test("profile images accept allowed hosts or an empty value", () => {
+  assert.equal(
+    profileUpdateSchema.safeParse({ image: "" }).success,
+    true
+  );
+  assert.equal(
+    profileUpdateSchema.safeParse({
+      image: "https://lh3.googleusercontent.com/a/photo",
+    }).success,
+    true
+  );
+  assert.equal(
+    profileUpdateSchema.safeParse({
+      image: "https://evil.example/photo.jpg",
+    }).success,
+    false
+  );
+});
+
 test("tuitionUpdateSchema requires at least one field", () => {
   assert.equal(tuitionUpdateSchema.safeParse({}).success, false);
   assert.equal(

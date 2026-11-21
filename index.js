@@ -45,7 +45,9 @@ app.use(
       ) {
         return callback(null, true);
       }
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+      const error = new Error(`Origin ${origin} is not allowed by CORS`);
+      error.status = 403;
+      return callback(error);
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

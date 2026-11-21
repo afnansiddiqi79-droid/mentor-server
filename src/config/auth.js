@@ -1,8 +1,46 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { jwt } from "better-auth/plugins";
 import { getClient, getDB } from "./db.js";
 import { resolveOrigins } from "./origins.js";
+
+/**
+ * Public signup may only ever create students or tutors. Admins are created by
+ * the seed script or promoted by an existing admin through the admin API.
+ */
+export function sanitizeNewUser(user = {}) {
+  const requestedRole = user.role;
+  const safeRole =
+    requestedRole === "tutor" || requestedRole === "student"
+      ? requestedRole
+      : "student";
+
+  return {
+    ...user,
+    role: safeRole,
+    plan: "free",
+    phone: typeof user.phone === "string" ? user.phone : "",
+    bio: typeof user.bio === "string" ? user.bio : "",
+  };
+}
+
+/**
+ * Better Auth exposes `role` as an input field so that signup can choose
+ * student/tutor. Without this guard, the same field would be writable through
+ * POST /api/auth/update-user, letting any signed-in user promote themselves to
+ * admin. Role changes must go through PATCH /api/admin/users/:id/role.
+ */
+export function guardUserUpdate(user = {}) {
+  if (Object.prototype.hasOwnProperty.call(user, "role")) {
+    throw new APIError("BAD_REQUEST", {
+      message: "Your role cannot be changed from your profile.",
+      code: "ROLE_NOT_EDITABLE",
+    });
+  }
+
+  return { data: user };
+}
 
 /**
  * Better Auth instance. Must be created after the MongoDB connection is ready.
@@ -87,24 +125,10 @@ export function createAuth() {
     databaseHooks: {
       user: {
         create: {
-          before: async (user) => {
-            // Public signup may only ever create students or tutors.
-            const requestedRole = user.role;
-            const safeRole =
-              requestedRole === "tutor" || requestedRole === "student"
-                ? requestedRole
-                : "student";
-
-            return {
-              data: {
-                ...user,
-                role: safeRole,
-                plan: "free",
-                phone: typeof user.phone === "string" ? user.phone : "",
-                bio: typeof user.bio === "string" ? user.bio : "",
-              },
-            };
-          },
+          before: async (user) => ({ data: sanitizeNewUser(user) }),
+        },
+        update: {
+          before: async (user) => guardUserUpdate(user),
         },
       },
     },

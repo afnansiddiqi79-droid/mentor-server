@@ -5,6 +5,28 @@ export const objectIdSchema = z
   .trim()
   .regex(/^[a-f\d]{24}$/i, "Invalid id");
 
+// Keep image URLs aligned with next.config.ts. This blocks arbitrary remote
+// hosts (tracking pixels, mixed content, broken images) while still accepting
+// ImgBB uploads, seeded Unsplash banners and Google profile photos.
+export const ALLOWED_IMAGE_HOSTS = new Set([
+  "i.ibb.co",
+  "ibb.co",
+  "images.unsplash.com",
+  "lh3.googleusercontent.com",
+]);
+
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .url("Image must be a valid URL")
+  .refine((value) => {
+    try {
+      return ALLOWED_IMAGE_HOSTS.has(new URL(value).hostname.toLowerCase());
+    } catch {
+      return false;
+    }
+  }, "Image must be hosted on ImgBB, Unsplash or Google");
+
 export const tuitionCreateSchema = z.object({
   title: z.string().trim().min(5, "Title must be at least 5 characters").max(140),
   subject: z.string().trim().min(2, "Subject is required").max(60),
@@ -20,7 +42,7 @@ export const tuitionCreateSchema = z.object({
     .int("Days per week must be a whole number")
     .min(1, "At least 1 day per week")
     .max(7, "At most 7 days per week"),
-  bannerImage: z.string().trim().url("Banner image must be a valid URL"),
+  bannerImage: imageUrlSchema,
   description: z
     .string()
     .trim()
@@ -53,9 +75,7 @@ export const profileUpdateSchema = z
     name: z.string().trim().min(2, "Name is too short").max(80).optional(),
     phone: z.string().trim().max(24, "Phone number is too long").optional(),
     bio: z.string().trim().max(600, "Bio must be under 600 characters").optional(),
-    image: z
-      .union([z.string().trim().url("Image must be a valid URL"), z.literal("")])
-      .optional(),
+    image: z.union([imageUrlSchema, z.literal("")]).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "Provide at least one field");
 

@@ -4,6 +4,14 @@ Express 5 + MongoDB API for the MentorLagbe tuition marketplace. It provides Bet
 
 Frontend: sibling repository `mentor-app` (Next.js 16).
 
+## Live deployment
+
+| Service | URL |
+| --- | --- |
+| API | <https://mentor-server-three.vercel.app> |
+| Health check | <https://mentor-server-three.vercel.app/api/health> |
+| Frontend | <https://mentor-app-snowy.vercel.app> |
+
 ## Highlights
 
 - **Exactly four business collections**: `users`, `tuitions`, `applications`, `payments`
@@ -73,8 +81,9 @@ Never commit `.env`. Only `.env.example` is tracked.
 ```bash
 npm run dev     # nodemon
 npm start       # production server
-npm run seed    # idempotent demo data
+npm run seed    # idempotent demo data (requires ADMIN_EMAIL + ADMIN_PASSWORD)
 npm run health  # hit the local health endpoint
+npm test        # Node test runner (unit tests)
 ```
 
 ## Data model
@@ -89,7 +98,7 @@ Better Auth fields plus `role` (`student|tutor|admin`), `plan` (`free|pro`), `ph
 `tuitionId`, tuition snapshot fields, `studentId`, `studentName`, `studentEmail`, `phone`, `preferredSchedule`, `studentNote`, `status` (`pending|accepted|rejected`), `appliedAt`. A unique compound index on `{ tuitionId, studentEmail }` prevents duplicates.
 
 ### `payments`
-`userEmail`, `userId`, `planName`, `amount`, `currency`, `stripeSessionId` (unique), `transactionId`, `paymentStatus` (`pending|paid|failed`), `paidAt`, `createdAt`.
+`userId`, `userEmail`, `userName`, `userRole`, `planName`, `amount`, `currency`, `stripeSessionId` (unique), `transactionId`, `paymentStatus` (`pending|paid|failed`), `paidAt`. `userId` is present on new records; older records may only have `userEmail`.
 
 ## Authentication and authorization
 
@@ -167,7 +176,7 @@ All routes are prefixed with `/api`. Responses use `{ success, data, meta? }` or
 | POST | `/payments/checkout` | Create a Stripe Checkout session |
 | GET | `/payments/verify-session?session_id=…` | Verify and fulfill a session |
 | GET | `/payments/mine` | My payments |
-| GET | `/payments/status` | Current plan and pricing |
+| GET | `/payments/status` | Current plan |
 | POST | `/payments/webhook` | Stripe webhook (raw body, signed) |
 
 ### Uploads
@@ -193,12 +202,12 @@ Without Stripe keys, checkout returns `503` with a clear message; no fake paymen
 ## Seed data
 
 ```bash
-ADMIN_EMAIL="admin@mentorlagbe.com" ADMIN_PASSWORD="Admin@12345" npm run seed
+ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="<strong-unique-password>" npm run seed
 ```
 
 Creates (idempotently):
 
-- Admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+- Admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (both are required; there is no default admin password)
 - Demo tutors and students (password `DEMO_PASSWORD`, default `Password123!`)
 - 12 approved tuitions plus 3 moderation examples
 - 12 applications and 3 payments
@@ -207,20 +216,24 @@ Demo logins:
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@mentorlagbe.com` | `Admin@12345` |
-| Tutor | `tutor@mentorlagbe.com` | `Password123!` |
-| Student | `student@mentorlagbe.com` | `Password123!` |
+| Tutor | `tutor@mentorlagbe.com` | `DEMO_PASSWORD` |
+| Student | `student@mentorlagbe.com` | `DEMO_PASSWORD` |
 
-Change these before deploying anywhere public.
+The real admin password is never published. Generate a unique password and
+rotate `ADMIN_PASSWORD` / `DEMO_PASSWORD` before deploying anywhere public.
+The seed script refuses to run without `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
 ## Security notes
 
 - Helmet-like hardening is not included; put the API behind a reverse proxy with TLS.
-- CORS is restricted to `CLIENT_URL`, `BETTER_AUTH_URL` and localhost (development only).
+- CORS is restricted to `CLIENT_URL`, `BETTER_AUTH_URL` and localhost (development only). Rejected origins receive `403`.
 - JSON bodies are limited to 2 MB; uploads to 5 MB.
-- All database queries that accept IDs validate ObjectIds before querying.
+- All database queries that accept IDs require the canonical 24-hex ObjectId form.
+- Role changes cannot be made through Better Auth's `POST /api/auth/update-user`; only the admin role endpoint can promote or demote users.
+- Image URLs are restricted to the hosts allowed by the frontend (`i.ibb.co`, `ibb.co`, `images.unsplash.com`, `lh3.googleusercontent.com`).
 - Error responses never expose stack traces in production.
 - Stripe webhooks are verified with the raw request body before JSON parsing.
+- Payment fulfilment is idempotent and re-applies the Pro upgrade if a previous attempt stored the payment but failed to update the user.
 
 ## Deployment
 
@@ -229,11 +242,11 @@ Change these before deploying anywhere public.
 3. Set `CLIENT_URL` to the deployed frontend origin and `BETTER_AUTH_URL` to the deployed API origin.
 4. Add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `IMGBB_API_KEY`.
 5. Register the Stripe webhook endpoint `https://<api>/api/payments/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`.
-6. Run `npm run seed` once (or create the admin manually) and verify `GET /api/health`.
+6. Run `npm run seed` once with a unique `ADMIN_EMAIL` / `ADMIN_PASSWORD` (or create the admin manually) and verify `GET /api/health`.
 7. Add the Google OAuth redirect URI `<BETTER_AUTH_URL>/api/auth/callback/google` in Google Cloud Console.
 
 ## Known limitations
 
-- Stripe and ImgBB integrations are implemented but cannot be executed end-to-end without real credentials.
+- Stripe and ImgBB integrations require real credentials for end-to-end use. Stripe can be tested with test-mode keys and signed test webhooks; no live charge is required.
 - No transactional email provider, so email verification and password reset emails are not enabled.
-- No automated test runner is configured; verification uses live API smoke tests plus frontend lint/build.
+- Automated tests cover HTTP helpers, validation, auth role guards, OAuth origin configuration and pricing (`npm test`, 28 tests). Full API/browser workflows are verified with local integration smoke tests plus frontend lint/build.

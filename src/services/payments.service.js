@@ -15,7 +15,16 @@ export async function processCheckoutSession(session) {
   }
 
   const existing = await payments.findOne({ stripeSessionId: session.id });
-  if (existing) return { payment: existing, alreadyProcessed: true };
+  if (existing) {
+    // A previous attempt may have stored the payment but crashed before the
+    // user document was upgraded (or the upgrade was rolled back). Fulfilment
+    // is idempotent, so re-apply the upgrade instead of returning early.
+    await db.collection("users").updateOne(
+      { email: existing.userEmail },
+      { $set: { plan: "pro", updatedAt: new Date() } }
+    );
+    return { payment: existing, alreadyProcessed: true };
+  }
 
   if (session.payment_status !== "paid") {
     throw new ApiError(400, "Payment has not been completed yet");
@@ -39,6 +48,7 @@ export async function processCheckoutSession(session) {
   if (!user) throw new ApiError(404, "The paying account no longer exists");
 
   const doc = {
+    userId: metadata.userId || user._id.toString(),
     userEmail,
     userName,
     userRole,
@@ -56,6 +66,10 @@ export async function processCheckoutSession(session) {
   } catch (error) {
     if (error?.code === 11000) {
       const duplicate = await payments.findOne({ stripeSessionId: session.id });
+      await db.collection("users").updateOne(
+        { email: userEmail },
+        { $set: { plan: "pro", updatedAt: new Date() } }
+      );
       return { payment: duplicate, alreadyProcessed: true };
     }
     throw error;

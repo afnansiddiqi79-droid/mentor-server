@@ -70,7 +70,16 @@ router.get(
     }
 
     const stripe = getStripe();
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (error) {
+      // An unknown/deleted session is a bad request, not a server failure.
+      throw new ApiError(
+        400,
+        error?.message || "Could not retrieve this checkout session"
+      );
+    }
 
     if (session.metadata?.userEmail !== req.user.email) {
       throw new ApiError(403, "This payment does not belong to your account");

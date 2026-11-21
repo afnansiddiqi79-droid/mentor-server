@@ -7,13 +7,29 @@ import { asyncHandler, sendSuccess, serialize, toObjectId } from "../utils/http.
 
 const router = Router();
 
+// Only expose the fields the profile UI needs. Auth internals (verification
+// flags, ban state, provider metadata, etc.) stay server-side.
+const PROFILE_PROJECTION = {
+  name: 1,
+  email: 1,
+  image: 1,
+  role: 1,
+  plan: 1,
+  phone: 1,
+  bio: 1,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
 // GET /api/profile/me
 router.get(
   "/me",
   verifyToken,
   asyncHandler(async (req, res) => {
     const db = getDB();
-    const user = await db.collection("users").findOne({ _id: toObjectId(req.user.id) });
+    const user = await db
+      .collection("users")
+      .findOne({ _id: toObjectId(req.user.id) }, { projection: PROFILE_PROJECTION });
     return sendSuccess(res, serialize(user));
   })
 );
@@ -29,7 +45,9 @@ router.patch(
     const update = { ...req.body, updatedAt: new Date() };
 
     await db.collection("users").updateOne({ _id: id }, { $set: update });
-    const user = await db.collection("users").findOne({ _id: id });
+    const user = await db
+      .collection("users")
+      .findOne({ _id: id }, { projection: PROFILE_PROJECTION });
     return sendSuccess(res, serialize(user));
   })
 );

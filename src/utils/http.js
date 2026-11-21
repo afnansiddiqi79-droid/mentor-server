@@ -20,7 +20,9 @@ export function sendSuccess(res, data, status = 200, meta = undefined) {
 }
 
 export function toObjectId(id, label = "id") {
-  if (typeof id !== "string" || !ObjectId.isValid(id)) {
+  // ObjectId.isValid() also accepts any 12-byte string, which would silently
+  // turn junk input into an ObjectId. Require the canonical 24-hex form.
+  if (typeof id !== "string" || !/^[a-f\d]{24}$/i.test(id)) {
     throw new ApiError(400, `Invalid ${label}`);
   }
   return new ObjectId(id);

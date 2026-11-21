@@ -24,12 +24,14 @@ test("toObjectId accepts a valid id", () => {
 });
 
 test("toObjectId rejects malformed ids with 400", () => {
-  assert.throws(() => toObjectId("not-an-id", "tuition id"), (error) => {
-    assert.ok(error instanceof ApiError);
-    assert.equal(error.status, 400);
-    assert.equal(error.message, "Invalid tuition id");
-    return true;
-  });
+  for (const id of ["not-an-id", "abcdefghijkl", "6afe7cac455f5d02d8434b2", ""]) {
+    assert.throws(() => toObjectId(id, "tuition id"), (error) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.status, 400);
+      assert.equal(error.message, "Invalid tuition id");
+      return true;
+    });
+  }
 });
 
 test("serialize converts _id to id and handles arrays", () => {
